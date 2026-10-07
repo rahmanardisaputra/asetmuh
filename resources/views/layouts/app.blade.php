@@ -26,24 +26,22 @@
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header" style="flex-direction: column; align-items: flex-start; padding: 1.5rem; gap: 0.5rem; height: auto;">
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; width: 100%;">
-                    @if(isset($profil_sekolah) && $profil_sekolah->logo)
-                        <img src="{{ asset('uploads/' . $profil_sekolah->logo) }}" alt="Logo" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: white; padding: 2px; flex-shrink: 0;">
-                    @else
-                        <div class="logo-icon" style="width: 40px; height: 40px; flex-shrink: 0;">
-                            <i class="fa-solid fa-school"></i>
-                        </div>
-                    @endif
-                    
-                    <div style="display: flex; flex-direction: column; justify-content: center; flex: 1;">
-                        <h2 style="font-size: 1rem; line-height: 1.3; margin: 0 0 0.2rem 0; white-space: normal; word-break: break-word; color: white;" title="{{ $profil_sekolah->nama_sekolah ?? 'Nama Sekolah' }}">
-                            {{ $profil_sekolah->nama_sekolah ?? 'Nama Sekolah' }}
-                        </h2>
-                        <span style="font-size: 0.75rem; color: rgba(255,255,255,0.7); white-space: normal; word-break: break-word; line-height: 1.3;" title="{{ $profil_sekolah->sub_nama ?? 'Sub Nama Sekolah' }}">
-                            {{ $profil_sekolah->sub_nama ?? 'Sub Nama Sekolah' }}
-                        </span>
+            <div class="sidebar-header" style="display: flex; flex-direction: row; align-items: center; padding: 1.25rem 1.5rem; gap: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                @if(isset($profil_sekolah) && $profil_sekolah->logo)
+                    <img src="{{ asset('uploads/' . $profil_sekolah->logo) }}" alt="Logo" style="width: 38px; height: 38px; border-radius: 8px; object-fit: contain; flex-shrink: 0; padding: 2px;">
+                @else
+                    <div class="logo-icon" style="width: 38px; height: 38px; flex-shrink: 0; background: var(--primary); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                        <i class="fa-solid fa-school"></i>
                     </div>
+                @endif
+                
+                <div style="display: flex; flex-direction: column; justify-content: center; flex: 1;">
+                    <h2 style="font-size: 0.95rem; line-height: 1.2; margin: 0 0 0.2rem 0; color: var(--text-main); font-weight: 700; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ $profil_sekolah->nama_sekolah ?? 'Nama Sekolah' }}">
+                        {{ $profil_sekolah->nama_sekolah ?? 'Nama Sekolah' }}
+                    </h2>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ $profil_sekolah->sub_nama ?? 'Sub Nama Sekolah' }}">
+                        {{ $profil_sekolah->sub_nama ?? 'Sub Nama Sekolah' }}
+                    </span>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -98,8 +96,12 @@
                         <h1>@yield('title')</h1>
                     </div>
                 </div>
-                
-                <div class="dropdown" id="profileDropdown">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <button id="themeToggleBtn" style="background: transparent; border: none; font-size: 1.25rem; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; transition: background-color 0.3s;">
+                        <i class="fa-regular fa-moon" id="themeIcon"></i>
+                    </button>
+                    
+                    <div class="dropdown" id="profileDropdown">
                     <div class="user-profile" onclick="toggleDropdown(event)">
                         <div class="avatar">A</div>
                         <span>Admin Sekolah</span>
@@ -231,6 +233,37 @@
                     });
                 }
             });
+        });
+
+        // Theme Toggle Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const themeIcon = document.getElementById('themeIcon');
+            
+            if (themeToggleBtn && themeIcon) {
+                const currentTheme = localStorage.getItem('theme') || 'light';
+                document.documentElement.setAttribute('data-theme', currentTheme);
+                updateThemeIcon(currentTheme);
+                
+                themeToggleBtn.addEventListener('click', () => {
+                    const current = document.documentElement.getAttribute('data-theme');
+                    const targetTheme = current === 'dark' ? 'light' : 'dark';
+                    
+                    document.documentElement.setAttribute('data-theme', targetTheme);
+                    localStorage.setItem('theme', targetTheme);
+                    updateThemeIcon(targetTheme);
+                });
+                
+                function updateThemeIcon(theme) {
+                    if (theme === 'dark') {
+                        themeIcon.classList.remove('fa-moon');
+                        themeIcon.classList.add('fa-sun');
+                    } else {
+                        themeIcon.classList.remove('fa-sun');
+                        themeIcon.classList.add('fa-moon');
+                    }
+                }
+            }
         });
     </script>
     @stack('scripts')

@@ -184,4 +184,160 @@ class AsetController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="template_import_barang.csv"',
+        ];
+
+        $callback = function() {
+            $file = fopen('php://output', 'w');
+            // Write heading row
+            fputcsv($file, [
+                'nama_barang', 'kategori', 'merk', 'satuan', 'tahun_perolehan', 
+                'tanggal_masuk', 'harga_perolehan', 'jumlah', 'prefix_kode', 
+                'ruangan', 'sumber_dana'
+            ]);
+            // Example row
+            fputcsv($file, [
+                'Laptop Asus', 'Elektronik', 'Asus', 'Unit', '2023', 
+                '2023-10-15', '15000000', '5', 'LPT', 
+                'Laboratorium Komputer', 'Dana BOS'
+            ]);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function previewImport(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            // Save file temporarily
+            $path = $request->file('file')->store('temp');
+            
+            // Read Excel
+            $data = \Maatwebsite\Excel\Facades\Excel::toArray(new \App\Imports\BarangImport, $path);
+            $rows = $data[0] ?? [];
+
+            // Validate against DB
+            $kategoris = \App\Models\Kategori::pluck('nama')->map(fn($v) => strtolower($v))->toArray();
+            $ruangans = \App\Models\Ruangan::pluck('nama')->map(fn($v) => strtolower($v))->toArray();
+            $sumberDanas = \App\Models\SumberDana::pluck('nama')->map(fn($v) => strtolower($v))->toArray();
+
+            $previewData = [];
+            $hasError = false;
+
+            foreach ($rows as $row) {
+                if (empty($row['nama_barang'])) continue;
+
+                $isValidKategori = in_array(strtolower($row['kategori'] ?? ''), $kategoris);
+                $isValidRuangan = in_array(strtolower($row['ruangan'] ?? ''), $ruangans);
+                $isValidSumber = in_array(strtolower($row['sumber_dana'] ?? ''), $sumberDanas);
+
+                $rowError = !$isValidKategori || !$isValidRuangan || !$isValidSumber;
+                if ($rowError) $hasError = true;
+
+                $previewData[] = [
+                    'nama_barang' => $row['nama_barang'],
+                    'kategori' => $row['kategori'] ?? '-',
+                    'kategori_valid' => $isValidKategori,
+                    'ruangan' => $row['ruangan'] ?? '-',
+                    'ruangan_valid' => $isValidRuangan,
+                    'sumber_dana' => $row['sumber_dana'] ?? '-',
+                    'sumber_dana_valid' => $isValidSumber,
+                    'merk' => $row['merk'] ?? '-',
+                    'jumlah' => intval($row['jumlah'] ?? 1),
+                    'harga' => $row['harga_perolehan'] ?? 0,
+                    'tahun' => $row['tahun_perolehan'] ?? '-',
+                    'satuan' => $row['satuan'] ?? 'Unit',
+                    'prefix' => $row['prefix_kode'] ?? 'AST',
+                    'tanggal_masuk' => $row['tanggal_masuk'] ?? now()->format('Y-m-d')
+                ];
+            }
+
+            return view('aset.preview', compact('previewData', 'hasError', 'path'));
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Terjadi kesalahan saat membaca file: ' . $e->getMessage()]);
+        }
+    }
+
+    public function processImport(\Illuminate\Http\Request $request)
+    {
+        $path = $request->path_file;
+        if (!$path || !\Illuminate\Support\Facades\Storage::exists($path)) {
+            return redirect()->route('aset.index')->withErrors(['error' => 'File import tidak ditemukan.']);
+        }
+
+        try {
+            $data = \Maatwebsite\Excel\Facades\Excel::toArray(new \App\Imports\BarangImport, $path);
+            $rows = $data[0] ?? [];
+
+            DB::beginTransaction();
+            $totalInserted = 0;
+
+            foreach ($rows as $row) {
+                if (empty($row['nama_barang'])) continue;
+
+                $kategori = \App\Models\Kategori::where('nama', $row['kategori'])->first();
+                $ruangan = \App\Models\Ruangan::where('nama', $row['ruangan'])->first();
+                $sumberDana = \App\Models\SumberDana::where('nama', $row['sumber_dana'])->first();
+
+                if (!$kategori || !$ruangan || !$sumberDana) {
+                    throw new \Exception("Data Kategori, Ruangan, atau Sumber Dana tidak valid pada barang: " . $row['nama_barang']);
+                }
+
+                $jumlah = intval($row['jumlah'] ?? 1);
+                $prefix = $row['prefix_kode'] ?? 'AST';
+
+                $barang = Barang::create([
+                    'nama' => $row['nama_barang'],
+                    'kategori_id' => $kategori->id,
+                    'merk' => $row['merk'] ?? null,
+                    'satuan' => $row['satuan'] ?? 'Unit',
+                    'tahun_perolehan' => $row['tahun_perolehan'] ?? null,
+                    'tanggal_masuk' => $row['tanggal_masuk'] ?? now()->format('Y-m-d'),
+                    'harga_perolehan' => $row['harga_perolehan'] ?? 0,
+                    'total_stok' => $jumlah
+                ]);
+
+                $units = [];
+                for ($i = 1; $i <= $jumlah; $i++) {
+                    $number = str_pad($i, 3, '0', STR_PAD_LEFT);
+                    $kode_unit = $prefix . '-' . $number;
+
+                    $units[] = [
+                        'barang_id' => $barang->id,
+                        'ruangan_id' => $ruangan->id,
+                        'sumber_dana_id' => $sumberDana->id,
+                        'kode_unit' => $kode_unit,
+                        'nomor_seri' => null,
+                        'kondisi' => 'Baik',
+                        'status' => 'Tersedia',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+
+                UnitBarang::insert($units);
+                $totalInserted += $jumlah;
+            }
+
+            DB::commit();
+            \Illuminate\Support\Facades\Storage::delete($path);
+            
+            return redirect()->route('aset.index')->with('success', $totalInserted . ' unit barang berhasil diimport!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('aset.index')->withErrors(['error' => 'Gagal import: ' . $e->getMessage()]);
+        }
+    }
 }

@@ -24,7 +24,10 @@
 </div>
 
 <!-- Tombol Action -->
-<div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-end;">
+<div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+    <button class="btn btn-outline" onclick="document.getElementById('modalImport').style.display='flex'">
+        <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Import Excel
+    </button>
     <button class="btn btn-primary" onclick="document.getElementById('modalTambah').style.display='flex'">
         <i class="fa-solid fa-plus"></i> Tambah Barang Baru
     </button>
@@ -125,6 +128,46 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="fa-solid fa-save"></i> Simpan & Generate Unit
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Import -->
+<div id="modalImport" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="card" style="width: 500px; max-width: 95%;">
+        <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem;">
+            <div class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Import Data Barang
+            </div>
+            <button type="button" class="btn btn-outline" style="padding: 0.2rem 0.5rem; border:none;" onclick="document.getElementById('modalImport').style.display='none'"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div style="padding-top: 0.5rem;">
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+                Silakan download template Excel terlebih dahulu, isi data barang yang ingin ditambahkan, lalu upload kembali ke sistem.
+            </p>
+            <div style="margin-bottom: 1.5rem;">
+                <a href="{{ route('aset.import.template') }}" class="btn btn-outline" style="width: 100%; justify-content: center; border-style: dashed;">
+                    <i class="fa-solid fa-download"></i> Download Template Excel
+                </a>
+            </div>
+            
+            <form action="{{ route('aset.import.preview') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Upload File Excel</label>
+                    <div class="drag-drop-zone" id="dragDropZone" onclick="document.getElementById('fileInput').click()">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: #10b981; margin-bottom: 0.8rem;"></i>
+                        <p style="margin: 0; font-weight: 500; color: var(--text-color);">Klik atau Drag & Drop file Excel ke sini</p>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.3rem;" id="fileNameDisplay">Maksimal 5MB (Format: .xlsx, .csv)</p>
+                    </div>
+                    <input type="file" name="file" id="fileInput" accept=".xlsx, .xls, .csv" required style="display: none;" onchange="updateFileName(this)">
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modalImport').style.display='none'">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload & Import</button>
                 </div>
             </form>
         </div>
@@ -320,5 +363,57 @@
             });
         });
     });
+</script>
+
+<style>
+    .drag-drop-zone {
+        border: 2px dashed #10b981;
+        background-color: #f0fdf4;
+        border-radius: 8px;
+        padding: 2.5rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .drag-drop-zone:hover, .drag-drop-zone.dragover {
+        background-color: #d1fae5;
+        border-color: #059669;
+    }
+</style>
+
+<script>
+    const zone = document.getElementById('dragDropZone');
+    const fileInput = document.getElementById('fileInput');
+    const display = document.getElementById('fileNameDisplay');
+
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('dragover');
+    });
+
+    zone.addEventListener('dragleave', () => {
+        zone.classList.remove('dragover');
+    });
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileName(fileInput);
+        }
+    });
+
+    function updateFileName(inputElement) {
+        if (inputElement.files.length > 0) {
+            display.textContent = 'Terpilih: ' + inputElement.files[0].name;
+            display.style.color = '#059669';
+            display.style.fontWeight = 'bold';
+        } else {
+            display.textContent = 'Maksimal 5MB (Format: .xlsx, .csv)';
+            display.style.color = 'var(--text-muted)';
+            display.style.fontWeight = 'normal';
+        }
+    }
 </script>
 @endsection

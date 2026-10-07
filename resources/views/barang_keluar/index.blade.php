@@ -23,7 +23,10 @@
         <div class="card-title">
             <i class="fa-solid fa-right-from-bracket"></i> Proses Barang Keluar
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-success" onclick="startScannerForKeluar()">
+                <i class="fa-solid fa-qrcode"></i> Scan Barang
+            </button>
             <button type="button" class="btn btn-danger" onclick="openKeluarModal()">
                 <i class="fa-solid fa-right-from-bracket"></i> Proses Barang Keluar
             </button>
@@ -94,6 +97,8 @@
                 <h3 style="margin: 0; font-size: 1.1rem; color: var(--danger);"><i class="fa-solid fa-box-open"></i> Form Barang Keluar</h3>
                 <span onclick="closeKeluarModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
             </div>
+            
+            <div id="keluarModalInfo" style="padding: 1rem 1.5rem 0 1.5rem;"></div>
             
             <div style="padding: 1.5rem;">
                 <div class="form-group">
@@ -171,6 +176,12 @@
             container.appendChild(input);
         });
 
+        document.getElementById('keluarModalInfo').innerHTML = `
+            <div style="background: #fee2e2; padding: 1rem; border-radius: 8px; border: 1px solid #fecaca;">
+                <strong><i class="fa-solid fa-circle-info"></i> ${selected.length} Aset Terpilih</strong> untuk dikeluarkan.
+            </div>
+        `;
+
         document.getElementById('keluarModal').style.display = 'block';
     }
 
@@ -184,5 +195,40 @@
             closeKeluarModal();
         }
     }
+
+    function startScannerForKeluar() {
+        openScanner(function(decodedText) {
+            fetch(`/api/scan-unit/${encodeURIComponent(decodedText)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let container = document.getElementById('hiddenInputsContainer');
+                        container.innerHTML = '';
+                        let input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'unit_ids[]';
+                        input.value = data.data.id;
+                        container.appendChild(input);
+                        
+                        let currentRoom = data.data.ruangan ? data.data.ruangan.nama : '-';
+                        document.getElementById('keluarModalInfo').innerHTML = `
+                            <div style="background: #fee2e2; padding: 1rem; border-radius: 8px; border: 1px solid #fecaca;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem;"><i class="fa-solid fa-qrcode"></i> Aset Terpilih (Hasil Scan):</div>
+                                <div><strong>Kode:</strong> ${data.data.kode_unit}</div>
+                                <div><strong>Barang:</strong> ${data.data.barang.nama}</div>
+                                <div><strong>Ruangan:</strong> ${currentRoom}</div>
+                            </div>
+                        `;
+                        
+                        document.getElementById('keluarModal').style.display = 'block';
+                        toastr.success('Barang ditemukan. Silakan lengkapi form pengeluaran.');
+                    } else {
+                        toastr.error(data.message);
+                    }
+                })
+                .catch(error => toastr.error('Terjadi kesalahan sistem saat mencari aset.'));
+        });
+    }
 </script>
+@include('components.scanner-modal')
 @endpush

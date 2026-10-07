@@ -53,7 +53,7 @@ class KondisiController extends Controller
         $unit = UnitBarang::findOrFail($request->unit_id);
         $unit->update(['kondisi' => $request->kondisi]);
 
-        return redirect()->back()
+        return redirect()->route('kondisi.index')
             ->with('success', 'Kondisi unit ' . $unit->kode_unit . ' berhasil diperbarui.');
     }
 }

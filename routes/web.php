@@ -10,7 +10,19 @@ use App\Http\Controllers\PeminjamanController;
 use App\Http\Controllers\DashboardController;
 
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+Route::get('/api/scan-unit/{kode}', function($kode) {
+    $unit = \App\Models\UnitBarang::with(['barang', 'ruangan'])->where('kode_unit', $kode)->first();
+    if ($unit) {
+        return response()->json(['success' => true, 'data' => $unit]);
+    }
+    return response()->json(['success' => false, 'message' => 'Aset dengan kode ' . $kode . ' tidak ditemukan.']);
+})->where('kode', '.*');
+
 Route::post('/aset/bulk', [AsetController::class, 'bulkStore'])->name('aset.bulk');
+Route::post('/aset/import/preview', [AsetController::class, 'previewImport'])->name('aset.import.preview');
+Route::post('/aset/import/process', [AsetController::class, 'processImport'])->name('aset.import.process');
+Route::get('/aset/import/template', [AsetController::class, 'downloadTemplate'])->name('aset.import.template');
 Route::get('/aset', [AsetController::class, 'index'])->name('aset.index');
 Route::get('/aset/{id}', [AsetController::class, 'show'])->name('aset.show');
 Route::put('/aset/{id}', [AsetController::class, 'update'])->name('aset.update');

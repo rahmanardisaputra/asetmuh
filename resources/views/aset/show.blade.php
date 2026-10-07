@@ -164,22 +164,52 @@
     @php
         $qrData = "Kode: {$unit->kode_unit}\n";
         $qrData .= "Barang: {$barang->nama}\n";
-        if($barang->merk) $qrData .= "Merk: {$barang->merk}\n";
-        if($barang->kategori) $qrData .= "Kategori: {$barang->kategori->nama}\n";
-        $qrData .= "Ruangan: " . ($unit->ruangan->nama ?? '-') . "\n";
-        $qrData .= "Sumber Dana: " . ($unit->sumberDana->nama ?? '-');
-        if($barang->tahun_perolehan) $qrData .= "\nTahun: {$barang->tahun_perolehan}";
+        $qrData .= "Merk: " . ($barang->merk ?? '-') . "\n";
+        $qrData .= "Kategori: " . ($barang->kategori ? $barang->kategori->nama : '-') . "\n";
+        $qrData .= "Sumber Dana: " . ($unit->sumberDana->nama ?? '-') . "\n";
+        $qrData .= "Tahun: " . ($barang->tahun_perolehan ?? '-');
     @endphp
     <div class="label-box" id="label-{{ $unit->id }}">
-        <div style="font-size: 0.75rem; font-weight: bold; border-bottom: 1px solid black; margin-bottom: 0.4rem; padding-bottom: 0.2rem;">
-            ASET SMP MUH 1 METRO
+        <!-- Left side: QR Code -->
+        <div style="width: 35%; display: flex; align-items: center; justify-content: center; border-right: 1px solid black; padding: 0.2rem;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ urlencode($qrData) }}" alt="QR Code" style="width: 100%; height: auto; max-width: 80px;">
         </div>
-        <!-- QR Code sebagai Barcode -->
-        <div style="margin-bottom: 0.4rem;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ urlencode($qrData) }}" alt="QR Code" style="width: 70px; height: 70px;">
+
+        <!-- Right side: Text details -->
+        <div style="width: 65%; display: flex; flex-direction: column; justify-content: flex-start;">
+            <!-- Header -->
+            <div style="font-size: 0.65rem; font-weight: bold; border-bottom: 1px solid black; padding: 0.3rem 0; text-transform: uppercase; text-align: center;">
+                ASET {{ $profil_sekolah->nama_sekolah ?? 'SEKOLAH' }}
+            </div>
+            
+            <!-- Details Table -->
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.6rem; margin: 0; text-align: left; font-family: sans-serif; line-height: 1.1;">
+                <tr>
+                    <td style="border-bottom: 1px solid black; border-right: 1px solid black; padding: 0.05rem 0.2rem; width: 30%;">Kode</td>
+                    <td style="border-bottom: 1px solid black; padding: 0.05rem 0.2rem; width: 70%;">: {{ $unit->kode_unit }}</td>
+                </tr>
+                <tr>
+                    <td style="border-bottom: 1px solid black; border-right: 1px solid black; padding: 0.05rem 0.2rem;">Barang</td>
+                    <td style="border-bottom: 1px solid black; padding: 0.05rem 0.2rem;">: {{ $barang->nama }}</td>
+                </tr>
+                <tr>
+                    <td style="border-bottom: 1px solid black; border-right: 1px solid black; padding: 0.05rem 0.2rem;">Merk</td>
+                    <td style="border-bottom: 1px solid black; padding: 0.05rem 0.2rem;">: {{ $barang->merk ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <td style="border-bottom: 1px solid black; border-right: 1px solid black; padding: 0.05rem 0.2rem;">Kategori</td>
+                    <td style="border-bottom: 1px solid black; padding: 0.05rem 0.2rem;">: {{ $barang->kategori ? $barang->kategori->nama : '-' }}</td>
+                </tr>
+                <tr>
+                    <td style="border-bottom: 1px solid black; border-right: 1px solid black; padding: 0.05rem 0.2rem;">Sumber dana</td>
+                    <td style="border-bottom: 1px solid black; padding: 0.05rem 0.2rem;">: {{ $unit->sumberDana ? $unit->sumberDana->nama : '-' }}</td>
+                </tr>
+                <tr>
+                    <td style="border-right: 1px solid black; padding: 0.05rem 0.2rem;">Tahun</td>
+                    <td style="padding: 0.05rem 0.2rem;">: {{ $barang->tahun_perolehan ?? '-' }}</td>
+                </tr>
+            </table>
         </div>
-        <div style="font-weight: bold; font-size: 0.9rem; margin-bottom: 0.2rem;">{{ $unit->kode_unit }}</div>
-        <div style="font-size: 0.7rem; line-height: 1.2;">{{ $barang->nama }} <br> {{ $barang->merk ? '('.$barang->merk.')' : '' }}</div>
     </div>
     @endforeach
 </div>
@@ -204,21 +234,21 @@
         top: 0;
         width: 100%;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 1rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
     }
     .label-box {
         display: none; /* Sembunyikan semua secara default */
-        border: 2px solid black;
-        padding: 0.5rem;
-        text-align: center;
+        border: 1px solid black;
+        border-radius: 8px;
         page-break-inside: avoid;
         background: white;
         color: black;
-        border-radius: 4px;
+        overflow: hidden;
     }
     .label-box.show-print {
-        display: block; /* Munculkan hanya yang dipilih */
+        display: flex; /* Munculkan hanya yang dipilih */
+        flex-direction: row;
     }
 }
 </style>

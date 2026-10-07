@@ -18,14 +18,19 @@
     </a>
 </div>
 <div class="card">
-    <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <div class="card-title">
             <i class="fa-solid fa-screwdriver-wrench"></i> Update Kondisi
+        </div>
+        <div>
+            <button type="button" class="btn btn-success" onclick="startScannerForKondisi()">
+                <i class="fa-solid fa-qrcode"></i> Scan Barang
+            </button>
         </div>
     </div>
     
     <!-- Filter Form -->
-    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
+    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); background: transparent;">
         <form action="{{ route('kondisi.index') }}" method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
             <button type="submit" style="display: none;"></button>
             <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
@@ -122,4 +127,74 @@
     </div>
     @endif
 </div>
+
+@push('scripts')
+<script>
+    function startScannerForKondisi() {
+        openScanner(function(decodedText) {
+            fetch(`/api/scan-unit/${encodeURIComponent(decodedText)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let currentRoom = data.data.ruangan ? data.data.ruangan.nama : '-';
+                        Swal.fire({
+                            title: `Update Kondisi`,
+                            html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                                    <div><strong>Kode:</strong> ${data.data.kode_unit}</div>
+                                    <div><strong>Barang:</strong> ${data.data.barang.nama}</div>
+                                    <div><strong>Ruangan:</strong> ${currentRoom}</div>
+                                    <div><strong>Kondisi Saat Ini:</strong> ${data.data.kondisi}</div>
+                                </div>
+                                <div style="text-align: left; font-weight: 500;">Pilih Kondisi Baru:</div>
+                            `,
+                            input: 'select',
+                            inputOptions: {
+                                'Baik': 'Baik',
+                                'Rusak Ringan': 'Rusak Ringan',
+                                'Rusak Berat': 'Rusak Berat'
+                            },
+                            inputPlaceholder: 'Pilih Kondisi Baru',
+                            showCancelButton: true,
+                            confirmButtonText: 'Update',
+                            cancelButtonText: 'Batal'
+                        }).then((result) => {
+                            if (result.isConfirmed && result.value) {
+                                let form = document.createElement('form');
+                                form.method = 'POST';
+                                form.action = '{{ route("kondisi.update") }}';
+                                
+                                let csrf = document.createElement('input');
+                                csrf.type = 'hidden';
+                                csrf.name = '_token';
+                                csrf.value = '{{ csrf_token() }}';
+                                
+                                let unitId = document.createElement('input');
+                                unitId.type = 'hidden';
+                                unitId.name = 'unit_id';
+                                unitId.value = data.data.id;
+                                
+                                let kondisi = document.createElement('input');
+                                kondisi.type = 'hidden';
+                                kondisi.name = 'kondisi';
+                                kondisi.value = result.value;
+                                
+                                form.appendChild(csrf);
+                                form.appendChild(unitId);
+                                form.appendChild(kondisi);
+                                document.body.appendChild(form);
+                                form.submit();
+                            }
+                        });
+                    } else {
+                        toastr.error(data.message);
+                    }
+                })
+                .catch(error => toastr.error('Terjadi kesalahan sistem saat mencari aset.'));
+        });
+    }
+</script>
+@include('components.scanner-modal')
+@endpush
+
 @endsection

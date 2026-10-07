@@ -23,6 +23,9 @@
             <i class="fa-solid fa-arrow-right-arrow-left"></i> Pindahkan Unit Barang
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-success" onclick="startScannerForMutasi()">
+                <i class="fa-solid fa-qrcode"></i> Scan
+            </button>
             <form action="{{ route('mutasi.index') }}" method="GET" style="display: flex; gap: 0.5rem; align-items: center; margin: 0;">
                 <select name="ruangan_id" class="form-control" onchange="this.form.submit()" style="width: 200px; margin: 0;" required>
                     <option value="">-- Pilih Ruangan Asal --</option>
@@ -108,6 +111,8 @@
                 <span onclick="closeMutasiModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
             </div>
             
+            <div id="mutasiModalInfo" style="padding: 1rem 1.5rem 0 1.5rem;"></div>
+            
             <div style="padding: 1.5rem;">
                 <div class="form-group">
                     <label class="form-label">Ruangan Tujuan</label>
@@ -179,6 +184,12 @@
             container.appendChild(input);
         });
 
+        document.getElementById('mutasiModalInfo').innerHTML = `
+            <div style="background: #e0f2fe; padding: 1rem; border-radius: 8px; border: 1px solid #bae6fd;">
+                <strong><i class="fa-solid fa-circle-info"></i> ${selected.length} Aset Terpilih</strong> untuk dimutasi.
+            </div>
+        `;
+
         document.getElementById('mutasiModal').style.display = 'block';
     }
 
@@ -193,5 +204,48 @@
             closeMutasiModal();
         }
     }
+
+    function startScannerForMutasi() {
+        openScanner(function(decodedText) {
+            fetch(`/api/scan-unit/${encodeURIComponent(decodedText)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.data.status !== 'Tersedia') {
+                            toastr.error(`Aset saat ini berstatus: ${data.data.status}.`);
+                            return;
+                        }
+                        
+                        let container = document.getElementById('hiddenInputsContainer');
+                        container.innerHTML = '';
+                        let input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'unit_ids[]';
+                        input.value = data.data.id;
+                        container.appendChild(input);
+                        
+                        // Inform user current location
+                        let currentRoom = data.data.ruangan ? data.data.ruangan.nama : 'Tidak diketahui';
+                        toastr.success(`Barang ditemukan di ${currentRoom}. Silakan pilih ruangan tujuan.`);
+                        
+                        document.getElementById('mutasiModalInfo').innerHTML = `
+                            <div style="background: #e0f2fe; padding: 1rem; border-radius: 8px; border: 1px solid #bae6fd;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem;"><i class="fa-solid fa-qrcode"></i> Aset Terpilih (Hasil Scan):</div>
+                                <div><strong>Kode:</strong> ${data.data.kode_unit}</div>
+                                <div><strong>Barang:</strong> ${data.data.barang.nama}</div>
+                                <div><strong>Ruangan Saat Ini:</strong> <span style="color: #0369a1; font-weight: 500;">${currentRoom}</span></div>
+                            </div>
+                        `;
+                        
+                        document.getElementById('mutasiModal').style.display = 'block';
+                    } else {
+                        toastr.error(data.message);
+                    }
+                })
+                .catch(error => toastr.error('Terjadi kesalahan sistem saat mencari aset.'));
+        });
+    }
 </script>
+
+@include('components.scanner-modal')
 @endpush

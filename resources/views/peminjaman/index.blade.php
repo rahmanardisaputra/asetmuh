@@ -24,7 +24,10 @@
         <div class="card-title">
             <i class="fa-solid fa-list-check"></i> Riwayat Peminjaman Aktif
         </div>
-        <div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-success" onclick="startScannerForPeminjaman()">
+                <i class="fa-solid fa-qrcode"></i> Scan Barang
+            </button>
             <button type="button" class="btn btn-primary" onclick="openPinjamModal()">
                 <i class="fa-solid fa-plus"></i> Pinjam Barang Baru
             </button>
@@ -107,6 +110,8 @@
                 <span onclick="closePinjamModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
             </div>
             
+            <div id="pinjamModalInfo" style="padding: 1rem 1.5rem 0 1.5rem;"></div>
+            
             <div style="padding: 1.5rem;">
                 <div class="form-group">
                     <label class="form-label">Pilih Unit Barang</label>
@@ -183,7 +188,56 @@ window.onclick = function(event) {
         closePinjamModal();
     }
 }
+
+function startScannerForPeminjaman() {
+    openScanner(function(decodedText) {
+        fetch(`/api/scan-unit/${encodeURIComponent(decodedText)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.data.kondisi === 'Rusak Berat') {
+                        toastr.error('Aset dalam kondisi Rusak Berat dan tidak dapat dipinjam.');
+                        return;
+                    }
+                    if (data.data.status !== 'Tersedia') {
+                        toastr.error(`Aset saat ini berstatus: ${data.data.status}.`);
+                        return;
+                    }
+                    
+                    let select = $('#unit_barang_select');
+                    let optionExists = select.find(`option[value="${data.data.id}"]`).length > 0;
+                    
+                    if (!optionExists) {
+                        let newOption = new Option(`${data.data.kode_unit} - ${data.data.barang.nama}`, data.data.id, true, true);
+                        select.append(newOption).trigger('change');
+                    } else {
+                        select.val(data.data.id).trigger('change');
+                    }
+                    
+                    let currentRoom = data.data.ruangan ? data.data.ruangan.nama : '-';
+                    document.getElementById('pinjamModalInfo').innerHTML = `
+                        <div style="background: #e0f2fe; padding: 1rem; border-radius: 8px; border: 1px solid #bae6fd;">
+                            <div style="font-weight: bold; margin-bottom: 0.5rem;"><i class="fa-solid fa-qrcode"></i> Aset Terpilih (Hasil Scan):</div>
+                            <div><strong>Kode:</strong> ${data.data.kode_unit}</div>
+                            <div><strong>Barang:</strong> ${data.data.barang.nama}</div>
+                            <div><strong>Ruangan:</strong> ${currentRoom}</div>
+                        </div>
+                    `;
+                    
+                    openPinjamModal();
+                    toastr.success('Barang ditemukan. Silakan lengkapi form peminjaman.');
+                } else {
+                    toastr.error(data.message);
+                }
+            })
+            .catch(error => {
+                toastr.error('Terjadi kesalahan sistem saat mencari aset.');
+            });
+    });
+}
 </script>
+
+@include('components.scanner-modal')
 <style>
 /* Adjust select2 inside modal */
 .select2-container .select2-selection--single {
